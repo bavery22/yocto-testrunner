@@ -18,7 +18,7 @@ trap "kill -9 $IOSTAT_PID; exit 1;" SIGINT
 
 function run_container {
     echo "Starting container: $i"
-    sudo docker run -t --rm=true --uid=`id -u` --privileged -v /stub:/fromhost $IMAGE master --testsuites='ping' --deploydir=/fromhost/deploy --preservesuccess &
+    sudo docker run -t --rm=true --privileged -v /stub:/fromhost $IMAGE master --uid=`id -u` --testsuites='ping' --deploydir=/fromhost/deploy --preservesuccess &
 }
 
 while [ $i -lt $NUM_INSTANCES ]; do
