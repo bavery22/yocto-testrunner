@@ -1,5 +1,13 @@
 FROM rewitt/yocto:ubuntu-14.04-builder
 
+USER root
+RUN echo "yoctouser ALL=NOPASSWD: /home/yoctouser/poky/scripts/runqemu-ifup" >> /etc/sudoers && \
+    echo "yoctouser ALL=NOPASSWD: /home/yoctouser/poky/scripts/runqemu-ifdown" >> /etc/sudoers && \
+    apt-get update && \
+    apt-get install -y \
+        iptables && \
+    apt-get clean
+
 USER yoctouser
 COPY local.conf /home/yoctouser/
 
