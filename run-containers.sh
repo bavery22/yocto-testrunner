@@ -1,8 +1,12 @@
 #!/bin/bash
 
 IMAGE=$1
-NUM_INSTANCES=$2
-LOCAL_VOLUME=$3
+shift
+NUM_INSTANCES=$1
+shift
+LOCAL_VOLUME=$1
+shift
+RUNBUILD_ARGS=$@
 
 # Default hardlimit on fedora
 ulimit -S -u 257070
@@ -19,7 +23,7 @@ trap "kill -9 $IOSTAT_PID; exit 1;" SIGINT
 
 function run_container {
     echo "Starting container: $i"
-    sudo docker run -t --rm=true --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE master --uid=`id -u` --testsuites='ping' --deploydir=/fromhost/deploy --preservesuccess &
+    sudo docker run -t --rm=true --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE --uid=`id -u` --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy $RUNBUILD_ARGS &
 }
 
 while [ $i -lt $NUM_INSTANCES ]; do
