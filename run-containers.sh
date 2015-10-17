@@ -10,7 +10,8 @@ RUNBUILD_ARGS=$@
 
 IMAGE_UUID=`uuidgen`-testing
 BRANCH="rewitt/container_testing"
-
+UID=`id -u`
+GID=`id -g`
 # Default hardlimit on fedora
 ulimit -S -u 257070
 
@@ -19,7 +20,7 @@ sudo sysctl -n -w fs.inotify.max_user_watches=15000000
 
 i=0
 
-iostat -x -z -N -d -p ALL 20 > iostat.log &
+iostat -x -z -N -d -p -t ALL 20 > iostat.log &
 IOSTAT_PID=$!
 
 function cleanup {
@@ -45,7 +46,7 @@ trap cleanup SIGINT
 
 function run_container {
     echo "Starting container: $i"
-    docker run --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID --uid=`id -u` --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy $BRANCH $RUNBUILD_ARGS &
+    docker run --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID --uid=${UID} --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy $BRANCH $RUNBUILD_ARGS &
 }
 
 function create_image {
@@ -65,8 +66,10 @@ FROM $IMAGE
 # fails which we know will
 USER root
 COPY sstate-cache /home/yoctouser/sstate-cache
-RUN mkdir /fromhost && \
-    chown -R yoctouser:yoctouser /fromhost /home/yoctouser/sstate-cache
+RUN groupadd -g $GID yoctogroup && \
+    usermod -u $UID -g $GID yoctouser &&\
+    mkdir /fromhost &&\
+    chown -R yoctouser:yoctogroup /fromhost /home/yoctouser/sstate-cache
 
 USER yoctouser
 
