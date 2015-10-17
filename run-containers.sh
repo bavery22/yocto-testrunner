@@ -42,7 +42,7 @@ function cleanup {
     exit 1
 }
 
-trap cleanup SIGINT
+trap cleanup SIGINT SIGTERM
 
 function run_container {
     echo "Starting container: $i"
