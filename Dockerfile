@@ -19,6 +19,6 @@ WORKDIR /home/yoctouser
 RUN  git clone --depth=1 --branch=rewitt/container_testing \
          http://git.yoctoproject.org/git/poky-contrib poky && \
      cd poky && \
-     git reset --hard e88ac996cd645e7b1943a3beb7a98ac72d30cf33 && \
+     git reset --hard f696ea8793588e23f585f7b709f2acbdf79dd5a7 && \
      git gc --aggressive --prune=all
  
