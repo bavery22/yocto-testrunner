@@ -83,7 +83,10 @@ RUN /home/yoctouser/runbuild.py rewitt/container_testing \
         exit 0
 EOF
 
-docker build --pull=true --force-rm=true -f $dockerfile -t $IMAGE_UUID $contextdir
+if ! docker build --pull=true --force-rm=true -f $dockerfile -t $IMAGE_UUID $contextdir; then
+    echo "Image creation failed: Exiting..."
+    cleanup
+fi
 }
 
 create_image
