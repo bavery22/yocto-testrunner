@@ -66,8 +66,8 @@ FROM $IMAGE
 # fails which we know will
 USER root
 COPY sstate-cache /home/yoctouser/sstate-cache
-RUN groupadd -g $GID yoctogroup && \
-    usermod -u $UID -g $GID yoctouser &&\
+RUN groupadd -o -g $GID yoctogroup && \
+    usermod -o -u $UID -g $GID yoctouser &&\
     mkdir /fromhost &&\
     chown -R yoctouser:yoctogroup /fromhost /home/yoctouser/sstate-cache
 
