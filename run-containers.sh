@@ -45,8 +45,8 @@ function cleanup {
 trap cleanup SIGINT SIGTERM
 
 function run_container {
-    echo "Starting container: $i"
-    docker run --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID --uid=${UID} --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy $BRANCH $RUNBUILD_ARGS &
+    echo "Starting container: $i-$IMAGE_UUID"
+    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID --uid=${UID} --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy --outputprefix="container-$i-$IMAGE_UUID-" $BRANCH $RUNBUILD_ARGS &
 }
 
 function create_image {
