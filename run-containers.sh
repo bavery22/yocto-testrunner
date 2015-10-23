@@ -10,13 +10,14 @@ RUNBUILD_ARGS=$@
 
 IMAGE_UUID=`uuidgen`-testing
 BRANCH="rewitt/container_testing"
+DEPLOY_DIR_URL="http://yocto-ab-master.jf.intel.com/~rewitt/deploy.tar.xz"
 UID=`id -u`
 GID=`id -g`
 # Default hardlimit on fedora
 ulimit -S -u 257070
 
 # Needed since bitbake does tons of watches
-sudo sysctl -n -w fs.inotify.max_user_watches=15000000
+sudo sysctl -n -w fs.inotify.max_user_watches=15000000 > /dev/null 2>&1
 
 i=0
 
@@ -47,6 +48,17 @@ trap cleanup SIGINT SIGTERM
 function run_container {
     echo "Starting container: $i-$IMAGE_UUID"
     docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID --uid=${UID} --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy --outputprefix="container-$i-$IMAGE_UUID-" $BRANCH $RUNBUILD_ARGS &
+}
+
+function create_deploy_dir {
+    # If the directory doesn't exist, or it is empty assume the user is ok with
+    # downloading the deploy dir.
+    if [ ! -d $LOCAL_VOLUME -o -z "`ls -A $LOCAL_VOLUME`" ]; then
+	mkdir -p $LOCAL_VOLUME
+
+        echo "Downloading sstate and images..."
+        curl -# $DEPLOY_DIR_URL | tar -C $LOCAL_VOLUME -x -J
+    fi
 }
 
 function create_image {
@@ -89,6 +101,7 @@ if ! docker build --pull=true --force-rm=true -f $dockerfile -t $IMAGE_UUID $con
 fi
 }
 
+create_deploy_dir
 create_image
 
 while [ $i -lt $NUM_INSTANCES ]; do
