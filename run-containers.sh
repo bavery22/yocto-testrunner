@@ -95,7 +95,13 @@ RUN /home/yoctouser/runbuild.py rewitt/container_testing \
         exit 0
 EOF
 
-if ! docker build --pull=true --force-rm=true -f $dockerfile -t $IMAGE_UUID $contextdir; then
+# If we had to pull a new image keep the newly created image by default. It
+# will substantially speed up subsequent runs.
+if ! docker pull $IMAGE | grep "^Status: Image is up to date" > /dev/null 2>&1; then
+    KEEP_TEST_IMAGE="1"
+fi
+
+if ! docker build --force-rm=true -f $dockerfile -t $IMAGE_UUID $contextdir; then
     echo "Image creation failed: Exiting..."
     cleanup
 fi
