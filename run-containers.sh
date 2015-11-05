@@ -8,6 +8,12 @@ LOCAL_VOLUME=$1
 shift
 RUNBUILD_ARGS=$@
 
+# Stupid command line parsing
+# Assume the pokydir must be in /fromhost
+POKYDIR=`echo "$RUNBUILD_ARGS" | sed -r -n -e 's#.*--pokydir( *= *| +)([^ ]+).*#\2#p'`
+HOST_POKYDIR=$LOCAL_VOLUME/`echo $POKYDIR | sed -e 's#/fromhost/##'`
+BASEPOKYDIR="`basename $POKYDIR`"
+
 IMAGE_UUID=`uuidgen`-testing
 BRANCH="rewitt/container_testing"
 DEPLOY_DIR_URL="http://yocto-ab-master.jf.intel.com/~rewitt/deploy.tar.xz"
@@ -66,9 +72,18 @@ function create_image {
 
     contextdir=`mktemp -d`
 
-    # Copy the sstate to the contextdir so not as much data has to be sent to
+    # Copy the items to the contextdir so not as much data has to be sent to
     # the docker daemon.
     cp -r $LOCAL_VOLUME/sstate-cache $contextdir
+
+    # Copying to a new dir named poky rather than preserving the name so
+    # that things don't get even more cluttered with basename
+    if [ -n "$POKYDIR" ]; then
+        cp -r $HOST_POKYDIR $contextdir
+	POKYDIR_ARG="--pokydir=/fromhost/$BASEPOKYDIR"
+    else
+	mkdir $contextdir/pokyfromuser
+    fi
 
     dockerfile=$contextdir/Dockerfile
 cat << EOF > $dockerfile
@@ -78,10 +93,12 @@ FROM $IMAGE
 # fails which we know will
 USER root
 COPY sstate-cache /home/yoctouser/sstate-cache
+
+RUN mkdir /fromhost
+COPY $BASEPOKYDIR /fromhost/$BASEPOKYDIR
 RUN groupadd -o -g $GID yoctogroup && \
     usermod -o -u $UID -g $GID yoctouser &&\
-    mkdir /fromhost &&\
-    chown -R yoctouser:yoctogroup /fromhost /home/yoctouser/sstate-cache
+    chown -R yoctouser:yoctogroup /fromhost /home/yoctouser
 
 USER yoctouser
 
@@ -90,7 +107,8 @@ USER yoctouser
 # non-existant image.
 RUN /home/yoctouser/runbuild.py rewitt/container_testing \
         --builddir=/home/yoctouser/build \
-        --deploydir=/dev/null; \
+        --deploydir=/dev/null \
+        $POKYDIR_ARG ; \
         rm /fromhost/* -rf; \
         exit 0
 EOF
