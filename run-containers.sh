@@ -11,8 +11,10 @@ RUNBUILD_ARGS=$@
 # Stupid command line parsing
 # Assume the pokydir must be in /fromhost
 POKYDIR=`echo "$RUNBUILD_ARGS" | sed -r -n -e 's#.*--pokydir( *= *| +)([^ ]+).*#\2#p'`
-HOST_POKYDIR=$LOCAL_VOLUME/`echo $POKYDIR | sed -e 's#/fromhost/##'`
-BASEPOKYDIR="`basename $POKYDIR`"
+if [ -n "$POKYDIR" ]; then
+    HOST_POKYDIR=$LOCAL_VOLUME/`echo $POKYDIR | sed -e 's#/fromhost/##'`
+    BASEPOKYDIR="`basename $POKYDIR`"
+fi
 
 IMAGE_UUID=`uuidgen`-testing
 BRANCH="rewitt/container_testing"
@@ -82,7 +84,8 @@ function create_image {
         cp -r $HOST_POKYDIR $contextdir
 	POKYDIR_ARG="--pokydir=/fromhost/$BASEPOKYDIR"
     else
-	mkdir $contextdir/pokyfromuser
+	BASEPOKYDIR="pokyfromuser"
+	mkdir $contextdir/$BASEPOKYDIR
     fi
 
     dockerfile=$contextdir/Dockerfile
