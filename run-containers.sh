@@ -62,7 +62,7 @@ function create_deploy_dir {
     # If the directory doesn't exist, or it is empty assume the user is ok with
     # downloading the deploy dir.
     if [ ! -d $LOCAL_VOLUME -o -z "`ls -A $LOCAL_VOLUME`" ]; then
-	mkdir -p $LOCAL_VOLUME
+        mkdir -p $LOCAL_VOLUME
 
         echo "Downloading sstate and images..."
         curl -# $DEPLOY_DIR_URL | tar -C $LOCAL_VOLUME -x -J
@@ -86,10 +86,10 @@ function create_image {
     # that things don't get even more cluttered with basename
     if [ -n "$POKYDIR" ]; then
         cp -r $HOST_POKYDIR $contextdir
-	POKYDIR_ARG="--pokydir=/fromhost/$BASEPOKYDIR"
+        POKYDIR_ARG="--pokydir=/fromhost/$BASEPOKYDIR"
     else
-	BASEPOKYDIR="pokyfromuser"
-	mkdir $contextdir/$BASEPOKYDIR
+        BASEPOKYDIR="pokyfromuser"
+        mkdir $contextdir/$BASEPOKYDIR
     fi
 
     dockerfile=$contextdir/Dockerfile
