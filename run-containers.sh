@@ -76,7 +76,11 @@ function create_image {
 
     # Copy the items to the contextdir so not as much data has to be sent to
     # the docker daemon.
-    cp -r $LOCAL_VOLUME/sstate-cache $contextdir
+    if [ -d $LOCAL_VOLUME/sstate-cache ]; then
+        cp -r $LOCAL_VOLUME/sstate-cache $contextdir
+    else
+        mkdir $contextdir/sstate-cache
+    fi
 
     # Copying to a new dir named poky rather than preserving the name so
     # that things don't get even more cluttered with basename
