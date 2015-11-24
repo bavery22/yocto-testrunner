@@ -8,16 +8,13 @@ LOCAL_VOLUME=$1
 shift
 RUNBUILD_ARGS=$@
 
-# Stupid command line parsing
 # Assume the pokydir must be in /fromhost
-POKYDIR=`echo "$RUNBUILD_ARGS" | sed -r -n -e 's#.*--pokydir( *= *| +)([^ ]+).*#\2#p'`
-if [ -n "$POKYDIR" ]; then
-    HOST_POKYDIR=$LOCAL_VOLUME/`echo $POKYDIR | sed -e 's#/fromhost/##'`
-    BASEPOKYDIR="`basename $POKYDIR`"
+if [ -d $LOCAL_VOLUME/copied_pokydir ]; then
+    HOST_POKYDIR=$LOCAL_VOLUME/copied_pokydir
+    BASEPOKYDIR="`basename $HOST_POKYDIR`"
 fi
 
 IMAGE_UUID=`uuidgen`-testing
-BRANCH="rewitt/container_testing"
 DEPLOY_DIR_URL="http://yocto-ab-master.jf.intel.com/~rewitt/deploy.tar.xz"
 UID=`id -u`
 GID=`id -g`
@@ -55,7 +52,7 @@ trap cleanup SIGINT SIGTERM
 
 function run_container {
     echo "Starting container: $i-$IMAGE_UUID"
-    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID --uid=${UID} --builddir=/home/yoctouser/build --deploydir=/fromhost/deploy --outputprefix="container-$i-$IMAGE_UUID-" $BRANCH $RUNBUILD_ARGS &
+    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID /fromhost/deploy $POKYDIR_ARG --extraconf=/home/yoctouser/local.conf --builddir=/home/yoctouser/build --outputprefix="container-$i-$IMAGE_UUID-" $RUNBUILD_ARGS &
 }
 
 function create_deploy_dir {
@@ -76,17 +73,26 @@ function create_image {
 
     # Copy the items to the contextdir so not as much data has to be sent to
     # the docker daemon.
-    if [ -d $LOCAL_VOLUME/sstate-cache ]; then
-        cp -r $LOCAL_VOLUME/sstate-cache $contextdir
+    if [ -d $LOCAL_VOLUME/testimage-sstate-cache ]; then
+        cp -r $LOCAL_VOLUME/testimage-sstate-cache $contextdir
     else
-        mkdir $contextdir/sstate-cache
+        mkdir $contextdir/testimage-sstate-cache
     fi
+
+    # We actually put the sstate and image to be tested into the image so that
+    # a test can be easily reproduced without the input directory
+    if [ -d $LOCAL_VOLUME/confdir ]; then
+        cat $LOCAL_VOLUME/confdir/base-extraconf.inc >> $contextdir/local.conf
+        cat $LOCAL_VOLUME/confdir/testimage-extraconf.inc >> $contextdir/local.conf
+    fi
+
+    echo "SSTATE_DIR = \"/home/yoctouser/testimage-sstate-cache\"" >> $contextdir/local.conf
 
     # Copying to a new dir named poky rather than preserving the name so
     # that things don't get even more cluttered with basename
-    if [ -n "$POKYDIR" ]; then
+    if [ -n "$HOST_POKYDIR" ]; then
         cp -r $HOST_POKYDIR $contextdir
-        POKYDIR_ARG="--pokydir=/fromhost/$BASEPOKYDIR"
+        POKYDIR_ARG="--pokydir=/home/yoctouser/$BASEPOKYDIR"
     else
         BASEPOKYDIR="pokyfromuser"
         mkdir $contextdir/$BASEPOKYDIR
@@ -99,10 +105,11 @@ FROM $IMAGE
 # Creating fromhost is just to capture the logs when running testimage
 # fails which we know will
 USER root
-COPY sstate-cache /home/yoctouser/sstate-cache
+COPY testimage-sstate-cache /home/yoctouser/testimage-sstate-cache
+COPY local.conf /home/yoctouser/local.conf
 
 RUN mkdir /fromhost
-COPY $BASEPOKYDIR /fromhost/$BASEPOKYDIR
+COPY $BASEPOKYDIR /home/yoctouser/$BASEPOKYDIR
 RUN groupadd -o -g $GID yoctogroup && \
     usermod -o -u $UID -g $GID yoctouser &&\
     chown -R yoctouser:yoctogroup /fromhost /home/yoctouser
@@ -112,9 +119,9 @@ USER yoctouser
 # Setting deploydir prevents runbuild from trying to build the image
 # Also the exit 0 is because we know this command will fail due to
 # non-existant image.
-RUN /home/yoctouser/runbuild.py rewitt/container_testing \
+RUN /home/yoctouser/runtest.py /dev/null "ping" \
         --builddir=/home/yoctouser/build \
-        --deploydir=/dev/null \
+        --extraconf=/home/yoctouser/local.conf \
         $POKYDIR_ARG ; \
         rm /fromhost/* -rf; \
         exit 0
