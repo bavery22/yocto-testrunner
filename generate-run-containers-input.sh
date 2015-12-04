@@ -14,19 +14,21 @@ CONFDIR=$LOCAL_VOLUME/$BASECONFDIR
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-trap cleanup SIGINT SIGTERM
+trap signalhandler SIGINT SIGTERM
+
+function signalhandler {
+    cleanup
+    exit 1
+}
 function cleanup {
     echo "Cleaning up..."
-    while true; do
-        containers=`docker ps -a | awk -v image="$IMAGE_UUID" '$2 ~ image {print $1}'`
-        if [ "x$containers" != "x" ]; then
-            docker kill -s KILL `docker ps | awk -v image="$IMAGE_UUID" '$2 ~ image {print $1}'` > /dev/null 2>&1
-        else
-            break
-        fi
-    done
+    containers=`docker ps -a | awk -v image="$IMAGE_UUID" '$2 ~ image {print $1}'`
+    if [ "x$containers" != "x" ]; then
+        docker kill -s KILL `docker ps | awk -v image="$IMAGE_UUID" '$2 ~ image {print $1}'` > /dev/null 2>&1
+    fi
 
     docker wait $containers > /dev/null 2>&1 
+    docker rm $containers
     docker rmi $IMAGE_UUID
     exit 1
 }
@@ -77,6 +79,7 @@ EOF
     if ! docker build -f $dockerfile -t $IMAGE_UUID $contextdir; then
         echo "Image creation failed: Exiting..."
         cleanup
+	exit 1
     fi
 }
 
@@ -161,5 +164,4 @@ create_baseconf
 create_coreimagesato_sstate
 create_testimage_sstate
 
-docker wait container-sstate-gen-$IMAGE_UUID
-docker rmi $IMAGE_UUID
+cleanup
