@@ -1,5 +1,5 @@
 #!/bin/bash
-HOSTPOKYDIR=$1
+HOSTPOKYDIR=`readlink -f $1`
 shift
 LOCAL_VOLUME=`readlink -f $1`
 shift
@@ -27,7 +27,7 @@ function cleanup {
         docker kill -s KILL `docker ps | awk -v image="$IMAGE_UUID" '$2 ~ image {print $1}'` > /dev/null 2>&1
     fi
 
-    docker wait $containers > /dev/null 2>&1 
+    docker wait $containers > /dev/null 2>&1
     docker rm $containers
     docker rmi $IMAGE_UUID
     exit 1
