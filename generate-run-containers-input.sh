@@ -85,42 +85,11 @@ EOF
 
 function create_testimage_sstate {
     echo "Creating testimage-sstate..."
+    mkdir -p $CONFDIR
 
     mkdir -p $CONFDIR
     cat << EOF > $CONFDIR/testimage-extraconf.inc
 SSTATE_DIR = "/fromhost/testimage-sstate-cache"
-EOF
-
-    # I do not like --net=host, but this is the easiest way to get people up and
-    # going without them having to worry about whether things will work behind a
-    # proxy.
-    docker run --name="container-sstate-gen-$IMAGE_UUID" -t --net=host \
-               -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID \
-               /dev/null \
-               "ping" \
-               --builddir=/home/yoctouser/build \
-               --pokydir=$CONTAINER_POKYDIR \
-               --outputprefix=$IMAGE_UUID \
-               --extraconf=/fromhost/$BASECONFDIR/base-extraconf.inc \
-               --extraconf=/fromhost/$BASECONFDIR/testimage-extraconf.inc \
-               > /dev/null 2>&1
-
-    # Remove the failure directory since we know it will fail and don't want
-    # to clutter up the local volume. But only do it if it contains the
-    # expected failure.
-    if grep "ERROR: No package manifest file found. Did you build the image?" $LOCAL_VOLUME/$IMAGE_UUID*-failure/stdout > /dev/null 2>&1 ; then
-        rm -rf $LOCAL_VOLUME/$IMAGE_UUID*-failure
-    else
-        echo "Could not generate sstate, check $IMAGE_UUID*-failure/stdout"
-    fi
-}
-
-function create_coreimagesato_sstate {
-    echo "Creating core-image-sato..."
-
-    mkdir -p $CONFDIR
-    cat << EOF > $CONFDIR/image-extraconf.inc
-SSTATE_DIR = "/fromhost/image-sstate-cache"
 EOF
 
     BUILDDIR=`mktemp -d -p $LOCAL_VOLUME youcandeleteme-builddir.XXX`
@@ -128,27 +97,15 @@ EOF
     # I do not like --net=host, but this is the easiest way to get people up and
     # going without them having to worry about whether things will work behind a
     # proxy.
-    docker run --name="container-coreimagesato-gen-$IMAGE_UUID" -t --net=host \
+    docker run --name="container-sstate-gen-$IMAGE_UUID" -t --net=host \
                --privileged -v $LOCAL_VOLUME:/fromhost \
                --entrypoint=/home/yoctouser/runbitbake.py $IMAGE_UUID \
                core-image-sato \
                /fromhost/`basename $BUILDDIR` \
                --pokydir=$CONTAINER_POKYDIR \
                --extraconf=/fromhost/$BASECONFDIR/base-extraconf.inc \
-               --extraconf=/fromhost/$BASECONFDIR/image-extraconf.inc \
-               > /dev/null 2>&1
+               --extraconf=/fromhost/$BASECONFDIR/testimage-extraconf.inc 
 
-    DEPLOYDIR=`mktemp -d -p $LOCAL_VOLUME youcandeleteme-deploydir.XXX`
-    cp -r $BUILDDIR/tmp/deploy $DEPLOYDIR
-
-    # Shuffle the deploy directory around to make things happy
-    mv $DEPLOYDIR/deploy/images $DEPLOYDIR
-    mv $DEPLOYDIR/images/qemux86 $DEPLOYDIR/deploy/images
-
-    rm $LOCAL_VOLUME/deploy -rf
-    mv $DEPLOYDIR/deploy $LOCAL_VOLUME
-
-    rm -rf $DEPLOYDIR
     rm -rf $BUILDDIR
 }
 
@@ -161,7 +118,6 @@ copy_poky_dir
 create_docker_image
 
 create_baseconf
-create_coreimagesato_sstate
 create_testimage_sstate
 
 cleanup
