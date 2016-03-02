@@ -100,11 +100,14 @@ EOF
     docker run --name="container-sstate-gen-$IMAGE_UUID" -t --net=host \
                --privileged -v $LOCAL_VOLUME:/fromhost \
                --entrypoint=/home/yoctouser/runbitbake.py $IMAGE_UUID \
-               core-image-sato \
+               "glibc-locale" \
                /fromhost/`basename $BUILDDIR` \
                --pokydir=$CONTAINER_POKYDIR \
                --extraconf=/fromhost/$BASECONFDIR/base-extraconf.inc \
                --extraconf=/fromhost/$BASECONFDIR/testimage-extraconf.inc 
+
+    # We don't want any sstate for glibc-locale
+    rm `find $LOCAL_VOLUME/testimage-sstate-cache -iname '*glibc-locale*'`
 
     rm -rf $BUILDDIR
 }
