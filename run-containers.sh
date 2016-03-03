@@ -52,7 +52,7 @@ trap cleanup SIGINT SIGTERM
 
 function run_container {
     echo "Starting container: $i-$IMAGE_UUID"
-    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID /fromhost/deploy $POKYDIR_ARG --extraconf=/home/yoctouser/local.conf --builddir=/home/yoctouser/build --outputprefix="container-$i-$IMAGE_UUID-" $RUNBUILD_ARGS &
+    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t -v $LOCAL_VOLUME:/fromhost --entrypoint=/bin/bash  $IMAGE_UUID -c "/home/yoctouser/runbitbake.py \"glibc-locale -c do_package\" /home/yoctouser/build $POKYDIR_ARG --extraconf=/home/yoctouser/local.conf $RUNBUILD_ARGS | cp -r /home/yoctouser/build /fromhost/$i-$IMAGE_UUID-build" &
 }
 
 function create_deploy_dir {
@@ -116,11 +116,8 @@ RUN groupadd -o -g $GID yoctogroup && \
 
 USER yoctouser
 
-# Setting deploydir prevents runbuild from trying to build the image
-# Also the exit 0 is because we know this command will fail due to
-# non-existant image.
-RUN /home/yoctouser/runtest.py /dev/null "ping" \
-        --builddir=/home/yoctouser/build \
+RUN /home/yoctouser/runbitbake.py "glibc-locale -c configure" \
+        /home/yoctouser/build \
         --extraconf=/home/yoctouser/local.conf \
         $POKYDIR_ARG ; \
         rm /fromhost/* -rf; \
