@@ -1,4 +1,4 @@
-FROM rewitt/yocto:ubuntu-14.04-builder
+FROM crops/yocto:ubuntu-14.04-builder
 
 USER root
 
