@@ -111,7 +111,7 @@ EOF
     if grep "No package manifest file found. Did you build the image?" $LOCAL_VOLUME/$IMAGE_UUID*-failure/test-stdout > /dev/null 2>&1 ; then
         rm -rf $LOCAL_VOLUME/$IMAGE_UUID*-failure
     else
-        echo "Could not generate sstate, check $IMAGE_UUID*-failure/stdout"
+        echo "Could not generate sstate, check $IMAGE_UUID*-failure/test-stdout"
     fi
 }
 
