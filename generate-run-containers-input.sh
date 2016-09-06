@@ -108,7 +108,7 @@ EOF
     # Remove the failure directory since we know it will fail and don't want
     # to clutter up the local volume. But only do it if it contains the
     # expected failure.
-    if grep "ERROR: No package manifest file found. Did you build the image?" $LOCAL_VOLUME/$IMAGE_UUID*-failure/stdout > /dev/null 2>&1 ; then
+    if grep "No package manifest file found. Did you build the image?" $LOCAL_VOLUME/$IMAGE_UUID*-failure/test-stdout > /dev/null 2>&1 ; then
         rm -rf $LOCAL_VOLUME/$IMAGE_UUID*-failure
     else
         echo "Could not generate sstate, check $IMAGE_UUID*-failure/stdout"
