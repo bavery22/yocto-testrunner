@@ -53,7 +53,9 @@ def preserve_artifacts(builddir, destdir, uid, removeimage=False):
         pass
 
     subprocess.call("chown -R {} {}".format(uid, destdir), shell=True)
-    subprocess.call("rm -rf {}".format(builddir), shell=True)
+    #  I'm not sure why I ever deleted the builddir, for now turn it off, but
+    #  possibly make it an option in the future.
+    #  subprocess.call("rm -rf {}".format(builddir), shell=True)
 
 # Raise exception if the subprocess fails
 def call_with_raise(cmd, logfile):
@@ -112,7 +114,7 @@ try:
 
         if args.deploydir:
             f.write("DEPLOY_DIR = \"{}\"\n".format(args.deploydir))
-            f.write("DEPLOY_DIR_IMAGE = \"{}/images\"\n".format(args.deploydir))
+#            f.write("DEPLOY_DIR_IMAGE = \"{}/images\"\n".format(args.deploydir))
 
         f.write("TESTIMAGE_DUMP_DIR = \"${TEST_LOG_DIR}\"\n")
 

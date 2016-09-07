@@ -4,7 +4,7 @@ IMAGE=$1
 shift
 NUM_INSTANCES=$1
 shift
-LOCAL_VOLUME=$1
+LOCAL_VOLUME=`readlink -f $1`
 shift
 RUNBUILD_ARGS=$@
 
@@ -16,10 +16,10 @@ fi
 
 IMAGE_UUID=`uuidgen`-testing
 DEPLOY_DIR_URL="http://yocto-ab-master.jf.intel.com/~rewitt/deploy.tar.xz"
-UID=`id -u`
-GID=`id -g`
+uid=`id -u`
+gid=`id -g`
 # Default hardlimit on fedora
-ulimit -S -u 257070
+ulimit -S -u 257067
 
 # Needed since bitbake does tons of watches
 sudo sysctl -n -w fs.inotify.max_user_watches=15000000 > /dev/null 2>&1
@@ -52,7 +52,10 @@ trap cleanup SIGINT SIGTERM
 
 function run_container {
     echo "Starting container: $i-$IMAGE_UUID"
-    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID /fromhost/deploy $POKYDIR_ARG --extraconf=/home/yoctouser/local.conf --builddir=/home/yoctouser/build --outputprefix="container-$i-$IMAGE_UUID-" $RUNBUILD_ARGS &
+    # Fixup *qemuboot.conf
+    sed -i -e 's#/fromhost/youcandeleteme-builddir[^/]*#/home/yoctouser/build#' $LOCAL_VOLUME/deploy/images/qemuppc/*.qemuboot.conf
+
+    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID $POKYDIR_ARG --imagetotest=core-image-sato-sdk --extraconf=/home/yoctouser/local.conf --builddir=/home/yoctouser/build --outputprefix="container-$i-$IMAGE_UUID-" $RUNBUILD_ARGS &
 }
 
 function create_deploy_dir {
@@ -110,21 +113,26 @@ COPY local.conf /home/yoctouser/local.conf
 
 RUN mkdir /fromhost
 COPY $BASEPOKYDIR /home/yoctouser/$BASEPOKYDIR
-RUN groupadd -o -g $GID yoctogroup && \
-    usermod -o -u $UID -g $GID yoctouser &&\
+RUN groupadd -o -g $gid yoctogroup && \
+    usermod -o -u $uid -g $gid yoctouser &&\
     chown -R yoctouser:yoctogroup /fromhost /home/yoctouser
 
 USER yoctouser
 
+
 # Setting deploydir prevents runbuild from trying to build the image
 # Also the exit 0 is because we know this command will fail due to
 # non-existant image.
-RUN /home/yoctouser/runtest.py /dev/null "ping" \
+RUN /home/yoctouser/runtest.py --deploydir=/dev/null --testsuites="ping" \
+	--imagetotest=core-image-sato-sdk \
         --builddir=/home/yoctouser/build \
         --extraconf=/home/yoctouser/local.conf \
         $POKYDIR_ARG ; \
         rm /fromhost/* -rf; \
-        exit 0
+        bash -c "rm -rf `find /home/yoctouser/copied_pokydir -name '__pycache__'`"
+
+RUN mkdir -p /home/yoctouser/build/tmp
+RUN ln -s /fromhost/deploy /home/yoctouser/build/tmp/deploy
 EOF
 
 # If we had to pull a new image keep the newly created image by default. It

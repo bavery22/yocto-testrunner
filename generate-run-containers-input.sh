@@ -14,8 +14,7 @@ CONFDIR=$LOCAL_VOLUME/$BASECONFDIR
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-trap signalhandler SIGINT SIGTERM
-
+trap signalhandler SIGINT SIGTERM EXIT
 function signalhandler {
     cleanup
     exit 1
@@ -43,12 +42,15 @@ function copy_poky_dir() {
 function create_baseconf() {
     mkdir -p $CONFDIR
     cat << EOF > $CONFDIR/base-extraconf.inc
-DISTRO_FEATURES_append = " systemd"
-VIRTUAL-RUNTIME_init_manager = "systemd"
-DISTRO_FEATURES_BACKFILL_CONSIDERED = "sysvinit"
+#DISTRO_FEATURES_append = " systemd"
+#VIRTUAL-RUNTIME_init_manager = "systemd"
+#DISTRO_FEATURES_BACKFILL_CONSIDERED = "sysvinit"
 DL_DIR = "/fromhost/downloads"
+MACHINE = "qemuppc"
 
 INHERIT += "rm_work"
+ERROR_QA_remove = "version-going-backwards"
+SDKMACHINE = "i686"
 EOF
 }
 
@@ -64,7 +66,7 @@ function create_docker_image {
     dockerfile=$contextdir/Dockerfile
 
     cat << EOF > $dockerfile
-FROM rewitt/yocto-testrunner
+FROM testrunner
 
 USER root
 
@@ -88,22 +90,21 @@ function create_testimage_sstate {
 
     mkdir -p $CONFDIR
     cat << EOF > $CONFDIR/testimage-extraconf.inc
+INHERIT += "testimage"
+TEST_QEMUBOOT_TIMEOUT = "1500"
 SSTATE_DIR = "/fromhost/testimage-sstate-cache"
 EOF
 
-    # I do not like --net=host, but this is the easiest way to get people up and
-    # going without them having to worry about whether things will work behind a
-    # proxy.
-    docker run --name="container-sstate-gen-$IMAGE_UUID" -t --net=host \
+    docker run --name="container-sstate-gen-$IMAGE_UUID" -t \
                -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID \
-               /dev/null \
-               "ping" \
+               --deploydir=/dev/null \
+               --testsuites="ping" \
                --builddir=/home/yoctouser/build \
                --pokydir=$CONTAINER_POKYDIR \
                --outputprefix=$IMAGE_UUID \
+	       --imagetotest=core-image-sato-sdk \
                --extraconf=/fromhost/$BASECONFDIR/base-extraconf.inc \
-               --extraconf=/fromhost/$BASECONFDIR/testimage-extraconf.inc \
-               > /dev/null 2>&1
+               --extraconf=/fromhost/$BASECONFDIR/testimage-extraconf.inc
 
     # Remove the failure directory since we know it will fail and don't want
     # to clutter up the local volume. But only do it if it contains the
@@ -125,25 +126,22 @@ EOF
 
     BUILDDIR=`mktemp -d -p $LOCAL_VOLUME youcandeleteme-builddir.XXX`
 
-    # I do not like --net=host, but this is the easiest way to get people up and
-    # going without them having to worry about whether things will work behind a
-    # proxy.
-    docker run --name="container-coreimagesato-gen-$IMAGE_UUID" -t --net=host \
+    docker run --name="container-coreimagesato-gen-$IMAGE_UUID" -t \
                --privileged -v $LOCAL_VOLUME:/fromhost \
                --entrypoint=/home/yoctouser/runbitbake.py $IMAGE_UUID \
-               core-image-sato \
-               /fromhost/`basename $BUILDDIR` \
+               -t core-image-sato-sdk \
+               -b /fromhost/`basename $BUILDDIR` \
                --pokydir=$CONTAINER_POKYDIR \
                --extraconf=/fromhost/$BASECONFDIR/base-extraconf.inc \
-               --extraconf=/fromhost/$BASECONFDIR/image-extraconf.inc \
-               > /dev/null 2>&1
+               --extraconf=/fromhost/$BASECONFDIR/image-extraconf.inc || \
+               exit 1
 
     DEPLOYDIR=`mktemp -d -p $LOCAL_VOLUME youcandeleteme-deploydir.XXX`
     cp -r $BUILDDIR/tmp/deploy $DEPLOYDIR
 
     # Shuffle the deploy directory around to make things happy
-    mv $DEPLOYDIR/deploy/images $DEPLOYDIR
-    mv $DEPLOYDIR/images/qemux86 $DEPLOYDIR/deploy/images
+    #mv $DEPLOYDIR/deploy/images $DEPLOYDIR
+    #mv $DEPLOYDIR/images/qemuppc $DEPLOYDIR/deploy/images
 
     rm $LOCAL_VOLUME/deploy -rf
     mv $DEPLOYDIR/deploy $LOCAL_VOLUME
@@ -163,5 +161,3 @@ create_docker_image
 create_baseconf
 create_coreimagesato_sstate
 create_testimage_sstate
-
-cleanup
