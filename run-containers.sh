@@ -55,7 +55,16 @@ function run_container {
     # Fixup *qemuboot.conf
     sed -i -e 's#/fromhost/youcandeleteme-builddir[^/]*#/home/yoctouser/build#' $LOCAL_VOLUME/deploy/images/qemuppc/*.qemuboot.conf
 
-    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v $LOCAL_VOLUME:/fromhost $IMAGE_UUID $POKYDIR_ARG --imagetotest=core-image-sato-sdk --extraconf=/home/yoctouser/local.conf --builddir=/home/yoctouser/build --outputprefix="container-$i-$IMAGE_UUID-" $RUNBUILD_ARGS &
+    docker run --name="container-$i-$IMAGE_UUID" --rm=true -t --privileged -v \
+	       $LOCAL_VOLUME:/fromhost --entrypoint=/bin/bash \
+	       $IMAGE_UUID \
+	       -c "mkdir -p /home/yoctouser/build/tmp/work/qemuppc-poky-linux/core-image-sato-sdk/1.0-r0/testimage && \
+	       sudo /usr/sbin/tcpdump -i any -w /home/yoctouser/build/tmp/work/qemuppc-poky-linux/core-image-sato-sdk/1.0-r0/testimage/dump.pcap & \
+	       /home/yoctouser/runtest.py $POKYDIR_ARG \
+	       --imagetotest=core-image-sato-sdk \
+	       --extraconf=/home/yoctouser/local.conf \
+               --builddir=/home/yoctouser/build \
+	       --outputprefix=\"container-$i-$IMAGE_UUID-\" $RUNBUILD_ARGS" &
 }
 
 function create_deploy_dir {

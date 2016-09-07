@@ -10,9 +10,10 @@ RUN echo "yoctouser ALL=NOPASSWD: /home/yoctouser/poky/scripts/runqemu-ifup" >> 
     echo "yoctouser ALL=NOPASSWD: /home/yoctouser/copied_pokydir/scripts/runqemu-ifdown" >> /etc/sudoers && \
     echo "yoctouser ALL=NOPASSWD: /fromhost/*/scripts/runqemu-ifup" >> /etc/sudoers && \
     echo "yoctouser ALL=NOPASSWD: /fromhost/*/scripts/runqemu-ifdown" >> /etc/sudoers && \
+    echo "yoctouser ALL=NOPASSWD: /usr/sbin/tcpdump" >> /etc/sudoers && \
     apt-get update && \
     apt-get install -y \
-        iptables && \
+        iptables tcpdump && \
     apt-get clean
 
 COPY runtest.py /home/yoctouser/
