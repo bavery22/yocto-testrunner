@@ -47,6 +47,14 @@ def preserve_artifacts(builddir, destdir, uid, removeimage=False):
     except IOError:
         pass
 
+    # also save the target logs (dmesg, X0.log...)
+    logsdir = "target_logs"
+    logsdir = os.path.join(builddir, logsdir)
+    try:
+        shutil.move(logsdir, destdir)
+    except IOError:
+        pass
+
     try:
         shutil.move(os.path.join(builddir, "test-stdout"), os.path.join(destdir, "test-stdout"))
     except IOError:
